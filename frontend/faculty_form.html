@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Faculty Syllabus Entry</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .module-card { background: #F9FAFB; padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; position: relative; }
+    .remove-btn { position: absolute; top: 1rem; right: 1rem; background: var(--danger); color: white; border: none; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .copo-grid { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; overflow-x: auto; font-size: 0.75rem; text-align: center; }
+    .copo-grid select { padding: 0.2rem; font-size: 0.75rem; }
+    .copo-header { font-weight: bold; background: #E5E7EB; padding: 0.5rem 0.2rem; }
+  </style>
+</head>
+<body>
+
+<div class="container animate-fade-in" style="margin-top: 60px;">
+  <div class="flex justify-between items-center mb-4">
+    <h2>Syllabus Draft</h2>
+    <div>
+      <button class="btn btn-outline" onclick="saveDraft()">Save Draft</button>
+      <button class="btn btn-primary" onclick="submitForApproval()">Submit to BOS</button>
+    </div>
+  </div>
+
+  <form id="syllabusForm">
+    <!-- Header Info -->
+    <div class="card mb-4">
+      <h3>Course Details</h3>
+      <div class="grid grid-2 gap-4 mt-4">
+        <div class="form-group"><label>Course Code</label><input type="text" id="courseCode" required></div>
+        <div class="form-group"><label>Course Title</label><input type="text" id="courseTitle" required></div>
+        <div class="form-group"><label>Department</label><input type="text" id="department" required></div>
+        <div class="form-group"><label>Credits</label><input type="number" id="credits" required></div>
+        <div class="form-group"><label>CIE Marks</label><input type="number" id="cieMarks" value="50"></div>
+        <div class="form-group"><label>SEE Marks</label><input type="number" id="seeMarks" value="50"></div>
+      </div>
+    </div>
+
+    <!-- Modules -->
+    <div class="card mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3>Modules</h3>
+        <button type="button" class="btn btn-secondary" onclick="addModule()">+ Add Module</button>
+      </div>
+      <div id="modulesContainer"></div>
+    </div>
+
+    <!-- CO-PO Mapping -->
+    <div class="card mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3>CO-PO/PSO Mapping</h3>
+        <button type="button" class="btn btn-secondary" onclick="addCO()">+ Add CO</button>
+      </div>
+      <div class="copo-grid mb-4" id="copoContainer">
+        <!-- Headers -->
+        <div class="copo-header">CO</div>
+        <div class="copo-header">PO1</div><div class="copo-header">PO2</div><div class="copo-header">PO3</div>
+        <div class="copo-header">PO4</div><div class="copo-header">PO5</div><div class="copo-header">PO6</div>
+        <div class="copo-header">PO7</div><div class="copo-header">PO8</div><div class="copo-header">PO9</div>
+        <div class="copo-header">PO10</div><div class="copo-header">PO11</div><div class="copo-header">PO12</div>
+        <div class="copo-header">PSO1</div><div class="copo-header">PSO2</div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let syllabusId = new URLSearchParams(window.location.search).get('id');
+  let modules = [];
+  let copo = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    if (syllabusId) {
+      try {
+        const data = await api.getSyllabus(syllabusId);
+        document.getElementById('courseCode').value = data.courseCode;
+        document.getElementById('courseTitle').value = data.courseTitle;
+        document.getElementById('department').value = data.department;
+        document.getElementById('credits').value = data.credits;
+        document.getElementById('cieMarks').value = data.cieMarks;
+        document.getElementById('seeMarks').value = data.seeMarks;
+        modules = data.modules || [];
+        copo = data.coPoMapping || [];
+      } catch (err) { alert('Error loading draft'); }
+    } else {
+      addModule(); // default 1 module
+      addCO(); // default 1 CO
+    }
+    renderModules();
+    renderCopo();
+  });
+
+  function addModule() {
+    modules.push({ title: '', objectives: '', contentDescription: '', teachingHours: 10, rbtLevels: '' });
+    renderModules();
+  }
+
+  function removeModule(idx) {
+    modules.splice(idx, 1);
+    renderModules();
+  }
+
+  function renderModules() {
+    const container = document.getElementById('modulesContainer');
+    container.innerHTML = modules.map((m, idx) => `
+      <div class="module-card">
+        <button type="button" class="remove-btn" onclick="removeModule(${idx})">X</button>
+        <h4>Module ${idx + 1}</h4>
+        <div class="grid grid-2 gap-4 mt-4">
+          <div class="form-group"><label>Title</label><input type="text" value="${m.title}" oninput="modules[${idx}].title=this.value" required></div>
+          <div class="form-group"><label>Hours</label><input type="number" value="${m.teachingHours}" oninput="modules[${idx}].teachingHours=this.value" required></div>
+          <div class="form-group" style="grid-column: span 2;"><label>Content Description</label><textarea rows="3" oninput="modules[${idx}].contentDescription=this.value" required>${m.contentDescription || ''}</textarea></div>
+          <div class="form-group"><label>Objectives</label><textarea oninput="modules[${idx}].objectives=this.value">${m.objectives || ''}</textarea></div>
+          <div class="form-group"><label>RBT Levels (e.g. L1, L2)</label><input type="text" value="${m.rbtLevels || ''}" oninput="modules[${idx}].rbtLevels=this.value"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function addCO() {
+    copo.push({ co: `CO${copo.length+1}`, po1:'-', po2:'-', po3:'-', po4:'-', po5:'-', po6:'-', po7:'-', po8:'-', po9:'-', po10:'-', po11:'-', po12:'-', pso1:'-', pso2:'-' });
+    renderCopo();
+  }
+
+  function renderCopo() {
+    const container = document.getElementById('copoContainer');
+    // Keep headers
+    let html = `
+      <div class="copo-header">CO</div>
+      <div class="copo-header">PO1</div><div class="copo-header">PO2</div><div class="copo-header">PO3</div>
+      <div class="copo-header">PO4</div><div class="copo-header">PO5</div><div class="copo-header">PO6</div>
+      <div class="copo-header">PO7</div><div class="copo-header">PO8</div><div class="copo-header">PO9</div>
+      <div class="copo-header">PO10</div><div class="copo-header">PO11</div><div class="copo-header">PO12</div>
+      <div class="copo-header">PSO1</div><div class="copo-header">PSO2</div>
+    `;
+    const opts = ['-', 'H', 'M', 'L'];
+    copo.forEach((item, idx) => {
+      html += `<div><input type="text" value="${item.co}" oninput="copo[${idx}].co=this.value" style="width:100%"></div>`;
+      ['po1','po2','po3','po4','po5','po6','po7','po8','po9','po10','po11','po12','pso1','pso2'].forEach(po => {
+        html += `
+          <div>
+            <select onchange="copo[${idx}].${po}=this.value" style="width:100%">
+              ${opts.map(o => `<option value="${o}" ${item[po] === o ? 'selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      });
+    });
+    container.innerHTML = html;
+  }
+
+  function getFormData() {
+    return {
+      courseCode: document.getElementById('courseCode').value,
+      courseTitle: document.getElementById('courseTitle').value,
+      department: document.getElementById('department').value,
+      credits: document.getElementById('credits').value,
+      cieMarks: document.getElementById('cieMarks').value,
+      seeMarks: document.getElementById('seeMarks').value,
+      modules,
+      coPoMapping: copo
+    };
+  }
+
+  async function saveDraft() {
+    try {
+      const data = getFormData();
+      if (syllabusId) {
+        await api.updateSyllabus(syllabusId, data);
+      } else {
+        const res = await api.createSyllabus(data);
+        syllabusId = res._id;
+        window.history.pushState({}, '', `?id=${syllabusId}`);
+      }
+      alert('Draft Saved!');
+    } catch (err) { alert(err.message); }
+  }
+
+  async function submitForApproval() {
+    try {
+      if (!syllabusId) await saveDraft(); // save first if new
+      await api.workflowAction(syllabusId, 'submit');
+      alert('Submitted to BOS successfully!');
+      window.location.href = 'dashboard.html';
+    } catch (err) { alert(err.message); }
+  }
+</script>
+</body>
+</html>

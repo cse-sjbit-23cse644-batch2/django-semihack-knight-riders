@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Autonomous Syllabus Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #4F46E5 0%, #10B981 100%); }
+    .auth-container { background: white; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); width: 100%; max-width: 400px; text-align: center; }
+    .auth-container h1 { margin-bottom: 2rem; color: #111827; font-size: 1.5rem; }
+    .error-msg { color: var(--danger); font-size: 0.875rem; margin-bottom: 1rem; display: none; }
+    .toggle-form { margin-top: 1.5rem; font-size: 0.875rem; color: var(--text-light); cursor: pointer; }
+    .toggle-form span { color: var(--primary); font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<div class="auth-container animate-fade-in" id="loginBox">
+  <h1>Welcome Back</h1>
+  <div id="errorMsg" class="error-msg"></div>
+  <form id="authForm" onsubmit="handleAuth(event)">
+    <div class="form-group" id="nameGroup" style="text-align: left;">
+      <label>Full Name (Username)</label>
+      <input type="text" id="name" required placeholder="John Doe">
+    </div>
+    <div class="form-group" style="text-align: left;">
+      <label>Password</label>
+      <input type="password" id="password" required placeholder="••••••••">
+    </div>
+    <div class="form-group" id="roleGroup" style="display: none; text-align: left;">
+      <label>Role</label>
+      <select id="role">
+        <option value="Faculty">Faculty</option>
+        <option value="BOS">Board of Studies (BOS)</option>
+        <option value="HOD">Head of Department (HOD)</option>
+        <option value="Admin">Admin</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="submitBtn">Sign In</button>
+  </form>
+  <div class="toggle-form" onclick="toggleMode()">
+    Don't have an account? <span id="toggleText">Register</span>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let isLogin = true;
+
+  function toggleMode() {
+    isLogin = !isLogin;
+    document.getElementById('roleGroup').style.display = isLogin ? 'none' : 'block';
+    document.querySelector('h1').innerText = isLogin ? 'Welcome Back' : 'Create Account';
+    document.getElementById('submitBtn').innerText = isLogin ? 'Sign In' : 'Register';
+    document.getElementById('toggleText').innerText = isLogin ? 'Register' : 'Sign In';
+    document.querySelector('.toggle-form').innerHTML = isLogin ? 
+      'Don\'t have an account? <span id="toggleText">Register</span>' : 
+      'Already have an account? <span id="toggleText">Sign In</span>';
+  }
+
+  async function handleAuth(e) {
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const password = document.getElementById('password').value;
+    const errorMsg = document.getElementById('errorMsg');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    errorMsg.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Processing...';
+
+    try {
+      let data;
+      if (isLogin) {
+        data = await api.login(name, password);
+      } else {
+        const role = document.getElementById('role').value;
+        data = await api.register({ name, password, role });
+      }
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      errorMsg.innerText = err.message;
+      errorMsg.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.innerText = isLogin ? 'Sign In' : 'Register';
+    }
+  }
+</script>
+</body>
+</html>

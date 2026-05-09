@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Review Syllabus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .audit-trail { border-left: 2px solid var(--border); padding-left: 1.5rem; margin-top: 1rem; }
+    .audit-item { position: relative; margin-bottom: 1.5rem; }
+    .audit-item::before { content: ''; position: absolute; left: -1.85rem; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); }
+    .audit-time { font-size: 0.75rem; color: var(--text-light); }
+  </style>
+</head>
+<body>
+
+<div class="container animate-fade-in" style="margin-top: 60px;">
+  <div class="flex justify-between items-center mb-4">
+    <h2 id="pageTitle">Review Syllabus</h2>
+    <div id="statusBadge"></div>
+  </div>
+
+  <div class="grid gap-4" style="grid-template-columns: 2fr 1fr;">
+    <!-- Content View -->
+    <div>
+      <div class="card mb-4">
+        <h3>Course Details</h3>
+        <table class="table">
+          <tr><th>Code</th><td id="viewCode"></td><th>Title</th><td id="viewTitle"></td></tr>
+          <tr><th>Department</th><td id="viewDept"></td><th>Credits</th><td id="viewCredits"></td></tr>
+        </table>
+      </div>
+      
+      <div class="card mb-4">
+        <h3>Modules (<span id="modCount"></span>)</h3>
+        <p class="text-sm">Read-only preview. Download PDF for full view.</p>
+      </div>
+    </div>
+
+    <!-- Actions & Audit -->
+    <div>
+      <div class="card mb-4" id="actionCard" style="display: none;">
+        <h3>Workflow Actions</h3>
+        <div class="form-group mt-4">
+          <label>Remarks (Optional)</label>
+          <textarea id="remarks" rows="3" placeholder="Add comments here..."></textarea>
+        </div>
+        <div class="flex gap-4 mt-4">
+          <button class="btn btn-secondary" onclick="handleWorkflow('approve')" style="flex: 1;">Approve</button>
+          <button class="btn btn-danger" onclick="handleWorkflow('reject')" style="flex: 1;">Reject</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Audit Trail</h3>
+        <div class="audit-trail" id="auditList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let syllabusId = new URLSearchParams(window.location.search).get('id');
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    try {
+      const data = await api.getSyllabus(syllabusId);
+      
+      // Populate basic info
+      document.getElementById('viewCode').innerText = data.courseCode;
+      document.getElementById('viewTitle').innerText = data.courseTitle;
+      document.getElementById('viewDept').innerText = data.department;
+      document.getElementById('viewCredits').innerText = data.credits;
+      document.getElementById('modCount').innerText = data.modules.length;
+      document.getElementById('statusBadge').innerHTML = getStatusBadge(data.status);
+
+      // Audit Trail
+      document.getElementById('auditList').innerHTML = data.auditTrail.map(a => `
+        <div class="audit-item">
+          <strong>${a.action}</strong> by ${a.userName}
+          <div class="audit-time">${new Date(a.timestamp).toLocaleString()}</div>
+          ${a.remarks ? `<div class="text-sm mt-4"><em>"${a.remarks}"</em></div>` : ''}
+        </div>
+      `).reverse().join('');
+
+      // Show Actions if appropriate
+      const isBOS = user.role === 'BOS' && data.status === 'Pending_BOS';
+      const isHOD = user.role === 'HOD' && data.status === 'Pending_HOD';
+      
+      if (isBOS || isHOD) {
+        document.getElementById('actionCard').style.display = 'block';
+      }
+
+    } catch (err) {
+      alert('Error loading syllabus: ' + err.message);
+    }
+  });
+
+  async function handleWorkflow(action) {
+    const remarks = document.getElementById('remarks').value;
+    try {
+      await api.workflowAction(syllabusId, action, remarks);
+      alert('Action completed successfully!');
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+</script>
+</body>
+</html>
